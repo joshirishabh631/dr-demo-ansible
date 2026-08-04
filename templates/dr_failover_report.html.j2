@@ -15,11 +15,12 @@ table { border-collapse: collapse; width: 100%; }
 .step-row td { padding: 10px 8px; border-bottom: 1px solid #eeeeee; color: #2c3e50; font-size: 14px; vertical-align: middle; }
 .step-num-cell { width: 34px; }
 .step-num { background-color: #2874a6; color: #ffffff; width: 24px; height: 24px; line-height: 24px; text-align: center; border-radius: 50%; font-size: 12px; display: inline-block; }
+.approved { color: #196f3d; font-weight: bold; }
+.skipped { color: #7f8c8d; font-style: italic; }
 .log-block { background-color: #1b2631; color: #d5dbdb; font-family: monospace; font-size: 12px; padding: 12px 16px; border-radius: 6px; white-space: pre-wrap; word-wrap: break-word; line-height: 1.5; margin-top: 8px; }
 .label { color: #7f8c8d; font-size: 12px; text-transform: uppercase; font-weight: bold; }
 .value-ok { color: #196f3d; font-weight: bold; }
 .value-down { color: #943126; font-weight: bold; }
-.compare-table td { vertical-align: top; width: 50%; padding: 0 10px; }
 </style></head>
 <body>
 
@@ -34,7 +35,7 @@ table { border-collapse: collapse; width: 100%; }
 </div>
 
 <div class="card">
-  <div class="card-title">Steps executed</div>
+  <div class="card-title">Steps executed (client-approved via survey)</div>
   <div class="card-body">
     <table>
       <tr class="step-row">
@@ -43,7 +44,11 @@ table { border-collapse: collapse; width: 100%; }
       </tr>
       <tr class="step-row">
         <td class="step-num-cell"><span class="step-num">2</span></td>
-        <td>DC VM ({{ drill.dc_vm }}) shut down to simulate outage</td>
+        <td>Shut down DC VM ({{ drill.dc_vm }}) &mdash;
+          <span class="{{ 'approved' if drill.shutdown_dc_approved == 'yes' else 'skipped' }}">
+            {{ 'Approved and executed' if drill.shutdown_dc_approved == 'yes' else 'Skipped (not approved)' }}
+          </span>
+        </td>
       </tr>
       <tr class="step-row">
         <td class="step-num-cell"><span class="step-num">3</span></td>
@@ -51,10 +56,22 @@ table { border-collapse: collapse; width: 100%; }
       </tr>
       <tr class="step-row">
         <td class="step-num-cell"><span class="step-num">4</span></td>
-        <td>DR VM ({{ drill.dr_vm }}) confirmed running</td>
+        <td>Start DR VM ({{ drill.dr_vm }}) &mdash;
+          <span class="{{ 'approved' if drill.start_dr_approved == 'yes' else 'skipped' }}">
+            {{ 'Approved and executed' if drill.start_dr_approved == 'yes' else 'Skipped (not approved)' }}
+          </span>
+        </td>
       </tr>
       <tr class="step-row">
         <td class="step-num-cell"><span class="step-num">5</span></td>
+        <td>DR health check &mdash;
+          <span class="{{ 'approved' if drill.health_check_approved == 'yes' else 'skipped' }}">
+            {{ 'Approved and executed' if drill.health_check_approved == 'yes' else 'Skipped (not approved)' }}
+          </span>
+        </td>
+      </tr>
+      <tr class="step-row">
+        <td class="step-num-cell"><span class="step-num">6</span></td>
         <td>DR site serving traffic &mdash; {{ drill.dr_post_status }}</td>
       </tr>
     </table>
@@ -72,22 +89,10 @@ table { border-collapse: collapse; width: 100%; }
 </div>
 
 <div class="card">
-  <div class="card-title">Site availability comparison</div>
+  <div class="card-title">DR site response after failover</div>
   <div class="card-body">
-    <table class="compare-table">
-      <tr>
-        <td>
-          <div class="label">DC site (before)</div>
-          <div class="{{ 'value-ok' if 'HTTP 200' in drill.dc_pre_status else 'value-down' }}">{{ drill.dc_pre_status }}</div>
-          <div class="log-block">{{ drill.dc_pre_content }}</div>
-        </td>
-        <td>
-          <div class="label">DR site (after failover)</div>
-          <div class="{{ 'value-ok' if 'HTTP 200' in drill.dr_post_status else 'value-down' }}">{{ drill.dr_post_status }}</div>
-          <div class="log-block">{{ drill.dr_post_content }}</div>
-        </td>
-      </tr>
-    </table>
+    <div class="{{ 'value-ok' if 'HTTP 200' in drill.dr_post_status else 'value-down' }}">{{ drill.dr_post_status }}</div>
+    <div class="log-block">{{ drill.dr_post_content }}</div>
   </div>
 </div>
 
@@ -97,19 +102,8 @@ table { border-collapse: collapse; width: 100%; }
 </div>
 
 <div class="card">
-  <div class="card-title">DR server — resource usage</div>
-  <div class="card-body">
-    <p style="color:#2c3e50"><b>Uptime:</b> {{ drill.dr_uptime }}</p>
-    <div class="label">Disk</div>
-    <div class="log-block">{{ drill.dr_disk }}</div>
-    <div class="label" style="margin-top:12px">Memory</div>
-    <div class="log-block">{{ drill.dr_mem }}</div>
-  </div>
-</div>
-
-<div class="card">
-  <div class="card-title">DR server — nginx access log (last 20 lines)</div>
-  <div class="card-body"><div class="log-block">{{ drill.dr_nginx_log }}</div></div>
+  <div class="card-title">DR server — resource usage (disk / memory / uptime)</div>
+  <div class="card-body"><div class="log-block">{{ drill.dr_resources }}</div></div>
 </div>
 
 </body></html>

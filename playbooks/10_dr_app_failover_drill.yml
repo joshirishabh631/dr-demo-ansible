@@ -1,5 +1,5 @@
 ---
-- name: DR application failover drill - full capture
+- name: DR application failover drill - interactive
   hosts: kvm
   gather_facts: false
   vars:
@@ -13,19 +13,19 @@
       set_fact:
         drill_start: "{{ lookup('pipe', 'date +%Y-%m-%dT%H:%M:%S') }}"
 
-    - name: Snapshot all VM states before drill
+    - name: Snapshot VM states before drill
       command: "virsh -c {{ virsh_uri }} list --all"
       register: vm_states_before
       changed_when: false
 
-    - name: Pre-check — DC site full response
+    - name: Pre-check DC site
       uri:
         url: "http://{{ dc_ip }}"
         return_content: true
       register: dc_pre_check
       failed_when: false
 
-    - name: Pre-check — DR site full response
+    - name: Pre-check DR site
       uri:
         url: "http://{{ dr_ip }}"
         return_content: true
@@ -37,10 +37,9 @@
       register: dc_status
       changed_when: false
 
-    - name: STEP 1 — Shut down DC VM (simulate outage)
+    - name: "STEP 1 (approved: {{ confirm_shutdown_dc }}) — Shut down DC VM"
       command: "virsh -c {{ virsh_uri }} shutdown {{ dc_vm }}"
-      when: "'running' in dc_status.stdout"
-      register: dc_shutdown_cmd
+      when: confirm_shutdown_dc == "yes" and 'running' in dc_status.stdout
 
     - name: Wait for DC VM to be shut off
       command: "virsh -c {{ virsh_uri }} domstate {{ dc_vm }}"
@@ -49,33 +48,35 @@
       retries: 12
       delay: 5
       changed_when: false
+      when: confirm_shutdown_dc == "yes"
 
-    - name: STEP 2 — Confirm DC site unreachable
+    - name: DC post-shutdown check
       uri:
         url: "http://{{ dc_ip }}"
         timeout: 5
       register: dc_post_check
       failed_when: false
+      when: confirm_shutdown_dc == "yes"
 
-    - name: STEP 3 — Confirm DR VM state
+    - name: Check DR VM state
       command: "virsh -c {{ virsh_uri }} domstate {{ dr_vm }}"
       register: dr_status
       changed_when: false
 
-    - name: Start DR VM if not already running
+    - name: "STEP 3 (approved: {{ confirm_start_dr }}) — Start DR VM"
       command: "virsh -c {{ virsh_uri }} start {{ dr_vm }}"
-      when: "'running' not in dr_status.stdout"
+      when: confirm_start_dr == "yes" and 'running' not in dr_status.stdout
       register: dr_start_result
       failed_when: dr_start_result is failed and 'already active' not in dr_start_result.stderr|default('')
 
-    - name: Wait for DR VM SSH to come up
+    - name: Wait for DR VM SSH
       wait_for:
         host: "{{ dr_ip }}"
         port: 22
         timeout: 120
-      when: "'running' not in dr_status.stdout"
+      when: confirm_start_dr == "yes" and 'running' not in dr_status.stdout
 
-    - name: Get DR VM nginx service status
+    - name: "STEP 4 (approved: {{ confirm_health_check }}) — DR nginx service status"
       delegate_to: "{{ dr_ip }}"
       vars:
         ansible_user: root
@@ -84,50 +85,26 @@
       register: dr_nginx_status
       failed_when: false
       changed_when: false
+      when: confirm_health_check == "yes"
 
-    - name: Get DR VM disk usage
+    - name: DR disk/mem/uptime
       delegate_to: "{{ dr_ip }}"
       vars:
         ansible_user: root
         ansible_password: redhat
-      shell: "df -h /"
-      register: dr_disk
+      shell: "df -h /; echo ---; free -h; echo ---; uptime -p"
+      register: dr_resources
       changed_when: false
+      when: confirm_health_check == "yes"
 
-    - name: Get DR VM memory
-      delegate_to: "{{ dr_ip }}"
-      vars:
-        ansible_user: root
-        ansible_password: redhat
-      shell: "free -h"
-      register: dr_mem
-      changed_when: false
-
-    - name: Get DR VM uptime
-      delegate_to: "{{ dr_ip }}"
-      vars:
-        ansible_user: root
-        ansible_password: redhat
-      shell: "uptime -p"
-      register: dr_uptime
-      changed_when: false
-
-    - name: Get DR VM nginx access log tail
-      delegate_to: "{{ dr_ip }}"
-      vars:
-        ansible_user: root
-        ansible_password: redhat
-      shell: "tail -n 20 /var/log/nginx/access.log 2>/dev/null || echo 'no access log yet'"
-      register: dr_nginx_log
-      changed_when: false
-
-    - name: STEP 4 — Verify DR site is serving traffic
+    - name: DR post-check
       uri:
         url: "http://{{ dr_ip }}"
         return_content: true
       register: dr_post_check
+      failed_when: false
 
-    - name: Snapshot all VM states after drill
+    - name: Snapshot VM states after drill
       command: "virsh -c {{ virsh_uri }} list --all"
       register: vm_states_after
       changed_when: false
@@ -136,40 +113,35 @@
       set_fact:
         drill_end: "{{ lookup('pipe', 'date +%Y-%m-%dT%H:%M:%S') }}"
 
-    - name: Compute human-readable status fields
+    - name: Compute display fields
       set_fact:
         dc_pre_status_display: "{{ 'HTTP ' + (dc_pre_check.status | default(0) | string) if (dc_pre_check.status | default(0) | int) > 0 else 'Unreachable' }}"
-        dr_pre_status_display: "{{ 'HTTP ' + (dr_pre_check.status | default(0) | string) if (dr_pre_check.status | default(0) | int) > 0 else 'Unreachable' }}"
-        dc_post_status_display: "{{ 'HTTP ' + (dc_post_check.status | default(0) | string) if (dc_post_check.status | default(0) | int) > 0 else 'Unreachable (expected - DC is down)' }}"
+        dc_post_status_display: "{{ 'HTTP ' + (dc_post_check.status | default(0) | string) if (dc_post_check.status | default(0) | int) > 0 else 'Unreachable (or step skipped)' }}"
         dr_post_status_display: "{{ 'HTTP ' + (dr_post_check.status | default(0) | string) if (dr_post_check.status | default(0) | int) > 0 else 'Unreachable' }}"
 
-    - name: Save full drill json
+    - name: Save drill json
       copy:
         content: >-
           {{ {
-            'dc_vm': dc_vm, 'dc_ip': dc_ip,
-            'dr_vm': dr_vm, 'dr_ip': dr_ip,
+            'dc_vm': dc_vm, 'dc_ip': dc_ip, 'dr_vm': dr_vm, 'dr_ip': dr_ip,
             'drill_start': drill_start, 'drill_end': drill_end,
+            'shutdown_dc_approved': confirm_shutdown_dc,
+            'start_dr_approved': confirm_start_dr,
+            'health_check_approved': confirm_health_check,
             'vm_states_before': vm_states_before.stdout,
             'vm_states_after': vm_states_after.stdout,
             'dc_pre_status': dc_pre_status_display,
-            'dc_pre_content': (dc_pre_check.content | default('no response')),
-            'dr_pre_status': dr_pre_status_display,
-            'dr_pre_content': (dr_pre_check.content | default('no response')),
             'dc_post_status': dc_post_status_display,
             'dr_post_status': dr_post_status_display,
             'dr_post_content': (dr_post_check.content | default('no response')),
-            'dr_nginx_status': (dr_nginx_status.stdout | default('n/a')),
-            'dr_disk': (dr_disk.stdout | default('n/a')),
-            'dr_mem': (dr_mem.stdout | default('n/a')),
-            'dr_uptime': (dr_uptime.stdout | default('n/a')),
-            'dr_nginx_log': (dr_nginx_log.stdout | default('n/a')),
-            'failover_result': ('SUCCESS' if (dr_post_check.status | default(0) | int) == 200 else 'FAILED')
+            'dr_nginx_status': (dr_nginx_status.stdout | default('skipped')),
+            'dr_resources': (dr_resources.stdout | default('skipped')),
+            'failover_result': ('SUCCESS' if (dr_post_check.status | default(0) | int) == 200 else 'INCOMPLETE / FAILED')
           } | to_nice_json }}
         dest: "/reports/data/dr_app_failover.json"
       delegate_to: localhost
 
-- name: Render DR failover report
+- name: Render report
   hosts: localhost
   connection: local
   gather_facts: false
@@ -177,7 +149,6 @@
     - name: Load drill data
       set_fact:
         drill: "{{ lookup('file', '/reports/data/dr_app_failover.json') | from_json }}"
-
     - name: Render HTML
       template:
         src: ../templates/dr_failover_report.html.j2

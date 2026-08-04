@@ -14,3 +14,9 @@
     - name: Report
       debug:
         msg: "{{ inventory_hostname }}: disk {{ disk_usage.stdout }}%, mem {{ mem_usage.stdout }}%"
+
+    - name: Save health json
+      copy:
+        content: "{{ {'host': inventory_hostname, 'os': ansible_distribution + ' ' + ansible_distribution_version, 'disk_pct': disk_usage.stdout, 'mem_pct': mem_usage.stdout, 'sshd_running': ('sshd' in ansible_facts.services or 'ssh' in ansible_facts.services)} | to_nice_json }}"
+        dest: "/reports/data/health_{{ inventory_hostname }}.json"
+      delegate_to: localhost

@@ -23,5 +23,5 @@
     - name: Save patch json
       copy:
         content: "{{ {'host': inventory_hostname, 'pending_updates': pending_count} | to_nice_json }}"
-        dest: "/tmp/patch_{{ inventory_hostname }}.json"
+        dest: "/reports/data/patch_{{ inventory_hostname }}.json"
       delegate_to: localhost

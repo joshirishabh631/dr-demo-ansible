@@ -14,22 +14,22 @@
   tasks:
     - name: Load health data
       set_fact:
-        health_data: "{{ health_data | default([]) + [lookup('file', '/tmp/health_' + item + '.json') | from_json] }}"
+        health_data: "{{ health_data | default([]) + [lookup('file', '/reports/data/health_' + item + '.json') | from_json] }}"
       loop: "{{ hosts_list }}"
 
     - name: Load patch data
       set_fact:
-        patch_data: "{{ patch_data | default([]) + [lookup('file', '/tmp/patch_' + item + '.json') | from_json] }}"
+        patch_data: "{{ patch_data | default([]) + [lookup('file', '/reports/data/patch_' + item + '.json') | from_json] }}"
       loop: "{{ hosts_list }}"
 
     - name: Load security data
       set_fact:
-        security_data: "{{ security_data | default([]) + [lookup('file', '/tmp/security_' + item + '.json') | from_json] }}"
+        security_data: "{{ security_data | default([]) + [lookup('file', '/reports/data/security_' + item + '.json') | from_json] }}"
       loop: "{{ hosts_list }}"
 
     - name: Load user audit data
       set_fact:
-        user_data: "{{ user_data | default([]) + [lookup('file', '/tmp/useraudit_' + item + '.json') | from_json] }}"
+        user_data: "{{ user_data | default([]) + [lookup('file', '/reports/data/useraudit_' + item + '.json') | from_json] }}"
       loop: "{{ hosts_list }}"
 
     - name: Render report

@@ -23,3 +23,4 @@
         content: "{{ {'host': inventory_hostname, 'backup_file': inventory_hostname + '_etc_backup_' + backup_ts + '.tar.gz', 'status': 'success'} | to_nice_json }}"
         dest: "/tmp/backup_{{ inventory_hostname }}.json"
       delegate_to: localhost
+      become: false

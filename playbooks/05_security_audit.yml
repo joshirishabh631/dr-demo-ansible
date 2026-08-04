@@ -33,3 +33,4 @@
         content: "{{ {'host': inventory_hostname, 'firewall': (fw_rhel.stdout | default(fw_ubuntu.stdout) | default('unknown')), 'root_login': root_login.stdout, 'open_ports': open_ports.stdout} | to_nice_json }}"
         dest: "/tmp/security_{{ inventory_hostname }}.json"
       delegate_to: localhost
+      become: false

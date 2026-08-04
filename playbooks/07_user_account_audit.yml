@@ -19,3 +19,4 @@
         content: "{{ {'host': inventory_hostname, 'human_users': human_users.stdout, 'empty_password_accounts': empty_pass.stdout} | to_nice_json }}"
         dest: "/tmp/useraudit_{{ inventory_hostname }}.json"
       delegate_to: localhost
+      become: false

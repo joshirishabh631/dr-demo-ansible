@@ -35,3 +35,5 @@
         content: "{{ {'host': inventory_hostname, 'nginx_deployed': true, 'http_check': (nginx_check.status | default('failed'))} | to_nice_json }}"
         dest: "/tmp/deploy_{{ inventory_hostname }}.json"
       delegate_to: localhost
+      become: false
+

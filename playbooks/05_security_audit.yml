@@ -12,7 +12,7 @@
       when: ansible_os_family == "RedHat"
 
     - name: Check firewall status (Ubuntu - ufw)
-      command: ufw status
+      command: ufw status verbose
       register: fw_ubuntu
       failed_when: false
       changed_when: false
@@ -24,7 +24,7 @@
       changed_when: false
 
     - name: Check listening ports
-      shell: "ss -tulnp | awk 'NR>1{print $5}' | sort -u | tr '\n' ',' "
+      shell: "ss -tulnp 2>/dev/null | column -t"
       register: open_ports
       changed_when: false
 

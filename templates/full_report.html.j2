@@ -1,40 +1,84 @@
-<!DOCTYPE html><html><head><meta charset="utf-8"><title>Infrastructure Automation Report</title>
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Infrastructure Automation Report</title>
 <style>
-body{font-family:Arial;margin:40px}h1{color:#1a5276}h2{color:#2874a6;margin-top:30px}
-table{border-collapse:collapse;width:100%;margin-top:12px}
-td,th{border:1px solid #ccc;padding:8px}th{background:#f2f2f2}
-.ok{color:green;font-weight:bold}.warn{color:#c0392b;font-weight:bold}
-</style></head><body>
-<h1>Infrastructure Automation Run</h1>
-<p>Generated {{ lookup('pipe','date') }}</p>
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 30px; background: #f4f6f8; color: #2c3e50; }
+.header { background: #1a5276; color: #fff; padding: 24px 30px; border-radius: 8px; margin-bottom: 24px; }
+.header h1 { margin: 0 0 6px 0; font-size: 24px; }
+.header p { margin: 0; opacity: 0.85; font-size: 13px; }
+.host-card { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 24px; overflow: hidden; }
+.host-title { background: #2874a6; color: #fff; padding: 12px 20px; font-size: 16px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
+.badge { padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: bold; }
+.badge-ok { background: #d5f5e3; color: #196f3d; }
+.badge-warn { background: #fdedec; color: #943126; }
+.section { padding: 16px 20px; border-bottom: 1px solid #eee; }
+.section:last-child { border-bottom: none; }
+.section h3 { margin: 0 0 8px 0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; color: #566573; }
+.log-block { background: #1b2631; color: #d5dbdb; font-family: 'Consolas', 'Monaco', monospace; font-size: 12.5px; padding: 12px 16px; border-radius: 6px; white-space: pre-wrap; word-wrap: break-word; line-height: 1.5; overflow-x: auto; }
+.kv-row { display: grid; grid-template-columns: 160px 1fr; gap: 8px; padding: 4px 0; font-size: 13px; }
+.kv-key { color: #7f8c8d; font-weight: 600; }
+.summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 24px; }
+.summary-box { background: #fff; border-radius: 8px; padding: 16px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.summary-box .num { font-size: 28px; font-weight: bold; color: #2874a6; }
+.summary-box .label { font-size: 12px; color: #7f8c8d; text-transform: uppercase; }
+</style></head>
+<body>
 
-<h2>Server health</h2>
-<table><tr><th>Host</th><th>OS</th><th>Disk %</th><th>Mem %</th><th>SSH</th></tr>
-{% for h in health_data %}
-<tr><td>{{ h.host }}</td><td>{{ h.os }}</td>
-<td class="{{ 'warn' if h.disk_pct|int > 80 else 'ok' }}">{{ h.disk_pct }}%</td>
-<td>{{ h.mem_pct }}%</td>
-<td class="{{ 'ok' if h.sshd_running else 'warn' }}">{{ h.sshd_running }}</td></tr>
-{% endfor %}</table>
+<div class="header">
+  <h1>Infrastructure Automation Report</h1>
+  <p>Generated {{ lookup('pipe','date') }} &nbsp;|&nbsp; DC/DR + Config Automation Suite</p>
+</div>
 
-<h2>Patch compliance</h2>
-<table><tr><th>Host</th><th>Pending updates</th></tr>
-{% for p in patch_data %}
-<tr><td>{{ p.host }}</td>
-<td class="{{ 'warn' if p.pending_updates|int > 0 else 'ok' }}">{{ p.pending_updates }}</td></tr>
-{% endfor %}</table>
+<div class="summary-grid">
+  <div class="summary-box"><div class="num">{{ health_data | length }}</div><div class="label">Servers checked</div></div>
+  <div class="summary-box"><div class="num">{{ patch_data | sum(attribute='pending_updates') }}</div><div class="label">Pending updates</div></div>
+  <div class="summary-box"><div class="num">{{ user_data | selectattr('empty_password_accounts','ne','') | list | length }}</div><div class="label">Security flags</div></div>
+</div>
 
-<h2>Security audit</h2>
-<table><tr><th>Host</th><th>Firewall</th><th>Root login</th></tr>
-{% for s in security_data %}
-<tr><td>{{ s.host }}</td><td>{{ s.firewall }}</td><td>{{ s.root_login }}</td></tr>
-{% endfor %}</table>
+{% for hostname in ["rhel8-10", "rhel9-8", "vahan-vpn"] %}
+{% set h = (health_data | selectattr('host','equalto',hostname) | first) %}
+{% set p = (patch_data | selectattr('host','equalto',hostname) | first) %}
+{% set s = (security_data | selectattr('host','equalto',hostname) | first) %}
+{% set u = (user_data | selectattr('host','equalto',hostname) | first) %}
+<div class="host-card">
+  <div class="host-title">
+    <span>{{ hostname }} &mdash; {{ h.os if h else 'unknown OS' }}</span>
+    <span class="badge {{ 'badge-warn' if (p and p.pending_updates|int > 0) else 'badge-ok' }}">
+      {{ p.pending_updates if p else 'n/a' }} updates pending
+    </span>
+  </div>
 
-<h2>User account audit</h2>
-<table><tr><th>Host</th><th>Human users</th><th>Empty-password accounts</th></tr>
-{% for u in user_data %}
-<tr><td>{{ u.host }}</td><td>{{ u.human_users }}</td>
-<td class="{{ 'warn' if u.empty_password_accounts else 'ok' }}">{{ u.empty_password_accounts if u.empty_password_accounts else 'None' }}</td></tr>
-{% endfor %}</table>
+  <div class="section">
+    <h3>System health</h3>
+    <div class="kv-row"><div class="kv-key">Uptime</div><div>{{ h.uptime if h else 'n/a' }}</div></div>
+    <div class="kv-row"><div class="kv-key">Services running</div><div>{{ h.running_services if h else 'n/a' }}</div></div>
+    <h3 style="margin-top:12px">Disk usage</h3>
+    <div class="log-block">{{ h.disk_raw if h else 'no data' }}</div>
+    <h3 style="margin-top:12px">Memory usage</h3>
+    <div class="log-block">{{ h.mem_raw if h else 'no data' }}</div>
+  </div>
+
+  <div class="section">
+    <h3>Patch compliance</h3>
+    <div class="log-block">{{ p.raw_output if (p and p.raw_output) else 'System up to date / no output' }}</div>
+  </div>
+
+  <div class="section">
+    <h3>Security audit</h3>
+    <div class="kv-row"><div class="kv-key">Firewall</div><div>{{ s.firewall if s else 'n/a' }}</div></div>
+    <div class="kv-row"><div class="kv-key">Root login</div><div>{{ s.root_login if s else 'n/a' }}</div></div>
+    <h3 style="margin-top:12px">Listening ports</h3>
+    <div class="log-block">{{ s.open_ports if s else 'no data' }}</div>
+  </div>
+
+  <div class="section">
+    <h3>User account audit</h3>
+    <div class="log-block">Human users:
+{{ u.human_users if u else 'no data' }}
+
+Empty-password accounts: {{ u.empty_password_accounts if (u and u.empty_password_accounts) else 'None found' }}</div>
+  </div>
+</div>
+{% endfor %}
 
 </body></html>

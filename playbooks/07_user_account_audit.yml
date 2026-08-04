@@ -4,13 +4,13 @@
   become: true
   gather_facts: false
   tasks:
-    - name: List human users (UID >= 1000)
-      shell: "awk -F: '$3>=1000 && $3<65534 {print $1}' /etc/passwd | tr '\n' ',' "
+    - name: List human users with details
+      shell: "awk -F: '$3>=1000 && $3<65534 {print $1\" (uid=\"$3\", shell=\"$7\")\"}' /etc/passwd"
       register: human_users
       changed_when: false
 
     - name: Check for accounts with empty password field
-      shell: "awk -F: '($2==\"\"){print $1}' /etc/shadow | tr '\n' ',' "
+      shell: "awk -F: '($2==\"\"){print $1}' /etc/shadow"
       register: empty_pass
       changed_when: false
 

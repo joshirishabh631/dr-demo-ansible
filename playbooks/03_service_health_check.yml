@@ -4,20 +4,29 @@
   gather_facts: true
   tasks:
     - name: Disk usage
-      shell: "df -h / | awk 'NR==2{print $5}' | tr -d '%'"
+      shell: "df -h /"
       register: disk_usage
       changed_when: false
 
     - name: Memory usage
-      shell: "free | awk '/Mem:/{printf \"%.0f\", $3/$2*100}'"
+      shell: "free -h"
       register: mem_usage
+      changed_when: false
+
+    - name: Uptime
+      shell: "uptime -p"
+      register: uptime_out
       changed_when: false
 
     - name: Service facts
       service_facts:
 
+    - name: Running services summary
+      set_fact:
+        running_services: "{{ ansible_facts.services | dict2items | selectattr('value.state','equalto','running') | map(attribute='key') | list | join(', ') }}"
+
     - name: Save health json
       copy:
-        content: "{{ {'host': inventory_hostname, 'os': ansible_distribution + ' ' + ansible_distribution_version, 'disk_pct': disk_usage.stdout, 'mem_pct': mem_usage.stdout, 'sshd_running': ('sshd' in ansible_facts.services or 'ssh' in ansible_facts.services)} | to_nice_json }}"
+        content: "{{ {'host': inventory_hostname, 'os': ansible_distribution + ' ' + ansible_distribution_version, 'disk_raw': disk_usage.stdout, 'mem_raw': mem_usage.stdout, 'uptime': uptime_out.stdout, 'running_services': running_services} | to_nice_json }}"
         dest: "/reports/data/health_{{ inventory_hostname }}.json"
       delegate_to: localhost

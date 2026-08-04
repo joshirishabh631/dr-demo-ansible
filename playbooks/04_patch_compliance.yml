@@ -16,12 +16,16 @@
       changed_when: false
       when: ansible_os_family == "Debian"
 
+    - name: Build raw output
+      set_fact:
+        patch_raw: "{{ (yum_check.stdout | default('')) if ansible_os_family == 'RedHat' else (apt_check.stdout | default('')) }}"
+
     - name: Count pending updates
       set_fact:
         pending_count: "{{ (yum_check.stdout_lines | default([]) | length) if ansible_os_family == 'RedHat' else (apt_check.stdout_lines | default([]) | length) }}"
 
     - name: Save patch json
       copy:
-        content: "{{ {'host': inventory_hostname, 'pending_updates': pending_count} | to_nice_json }}"
+        content: "{{ {'host': inventory_hostname, 'pending_updates': pending_count, 'raw_output': patch_raw} | to_nice_json }}"
         dest: "/reports/data/patch_{{ inventory_hostname }}.json"
       delegate_to: localhost

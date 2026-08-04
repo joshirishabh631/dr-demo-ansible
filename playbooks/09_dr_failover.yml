@@ -1,7 +1,6 @@
 ---
 - name: DC to DR failover
-  hosts: localhost
-  connection: local
+  hosts: kvm
   gather_facts: false
   vars:
     dc_vm: "rhel8.10"
@@ -12,39 +11,35 @@
         drill_start: "{{ lookup('pipe', 'date +%Y-%m-%dT%H:%M:%S') }}"
 
     - name: Check DC VM state
-      community.libvirt.virt:
-        name: "{{ dc_vm }}"
-        command: status
+      command: "virsh domstate {{ dc_vm }}"
       register: dc_status
+      changed_when: false
 
     - name: Shut down DC VM (simulate outage)
-      community.libvirt.virt:
-        name: "{{ dc_vm }}"
-        state: shutdown
-      when: dc_status.status == 'running'
+      command: "virsh shutdown {{ dc_vm }}"
+      when: "'running' in dc_status.stdout"
 
-    - name: Confirm DC VM down
-      community.libvirt.virt:
-        name: "{{ dc_vm }}"
-        command: status
+    - name: Wait for DC VM to be shut off
+      command: "virsh domstate {{ dc_vm }}"
       register: dc_stop_check
-      until: dc_stop_check.status == 'shutdown'
+      until: "'shut off' in dc_stop_check.stdout"
       retries: 12
       delay: 5
+      changed_when: false
 
-    - name: Start DR VM
-      community.libvirt.virt:
-        name: "{{ dr_vm }}"
-        state: running
+    - name: Start DR VM (failover)
+      command: "virsh start {{ dr_vm }}"
+      register: dr_start_result
+      failed_when: dr_start_result.rc != 0 and 'already active' not in dr_start_result.stderr
+      changed_when: dr_start_result.rc == 0
 
-    - name: Confirm DR VM up
-      community.libvirt.virt:
-        name: "{{ dr_vm }}"
-        command: status
+    - name: Confirm DR VM running
+      command: "virsh domstate {{ dr_vm }}"
       register: dr_start_check
-      until: dr_start_check.status == 'running'
+      until: "'running' in dr_start_check.stdout"
       retries: 12
       delay: 5
+      changed_when: false
 
     - name: Record drill end
       set_fact:
@@ -53,4 +48,5 @@
     - name: Save failover json
       copy:
         content: "{{ {'dc_vm': dc_vm, 'dr_vm': dr_vm, 'drill_start': drill_start, 'drill_end': drill_end} | to_nice_json }}"
-        dest: "/tmp/failover_result.json"
+        dest: "/reports/data/failover_result.json"
+      delegate_to: localhost

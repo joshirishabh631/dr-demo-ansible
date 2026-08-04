@@ -1,0 +1,16 @@
+---
+- name: Server health check
+  hosts: all
+  gather_facts: true
+  tasks:
+    - name: Disk usage
+      shell: "df -h / | awk 'NR==2{print $5}' | tr -d '%'"
+      register: disk_usage
+      changed_when: false
+    - name: Memory usage
+      shell: "free | awk '/Mem:/{printf \"%.0f\", $3/$2*100}'"
+      register: mem_usage
+      changed_when: false
+    - name: Report
+      debug:
+        msg: "{{ inventory_hostname }}: disk {{ disk_usage.stdout }}%, mem {{ mem_usage.stdout }}%"

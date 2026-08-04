@@ -1,0 +1,10 @@
+---
+- name: Connectivity and facts check
+  hosts: all
+  gather_facts: true
+  tasks:
+    - name: Ping all servers
+      ping:
+    - name: Show OS and uptime
+      debug:
+        msg: "{{ inventory_hostname }}: {{ ansible_distribution }} {{ ansible_distribution_version }}"

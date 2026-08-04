@@ -1,0 +1,28 @@
+all:
+  children:
+    rhel:
+      hosts:
+        rhel8-10:
+          ansible_host: 192.168.122.126
+          ansible_user: root
+          ansible_password: redhat
+          ansible_become_password: redhat
+        rhel9-8:
+          ansible_host: 192.168.122.45
+          ansible_user: root
+          ansible_password: redhat
+          ansible_become_password: redhat
+    ubuntu:
+      hosts:
+        vahan-vpn:
+          ansible_host: 192.168.122.34
+          ansible_user: rishabh
+          ansible_password: "1"
+          ansible_become_password: "1"
+  children:
+    dc:
+      hosts:
+        rhel8-10:
+    dr:
+      hosts:
+        rhel9-8:

@@ -14,7 +14,7 @@
     - name: Fetch backup to control node
       fetch:
         src: "/tmp/{{ inventory_hostname }}_etc_backup_{{ backup_ts }}.tar.gz"
-        dest: "/home/rishabh/dr-demo/semaphore/reports/backups/"
+        dest: "/reports/backups/"
         flat: true
 
     - name: Save backup status json

@@ -35,7 +35,7 @@
     - name: Render report
       template:
         src: ../templates/full_report.html.j2
-        dest: "/home/rishabh/dr-demo/semaphore/reports/automation_run_{{ lookup('pipe','date +%Y%m%d_%H%M%S') }}.html"
+        dest: "/reports/automation_run_{{ lookup('pipe','date +%Y%m%d_%H%M%S') }}.html"
 
     - name: Print summary to job log
       debug:

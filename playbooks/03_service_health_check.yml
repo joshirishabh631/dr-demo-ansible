@@ -1,6 +1,6 @@
 ---
 - name: Server health check
-  hosts: all
+  hosts: rhel:ubuntu
   gather_facts: true
   tasks:
     - name: Disk usage

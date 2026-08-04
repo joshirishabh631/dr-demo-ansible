@@ -1,6 +1,6 @@
 ---
 - name: Patch compliance check
-  hosts: all
+  hosts: rhel:ubuntu
   gather_facts: true
   tasks:
     - name: Check updates (RHEL)

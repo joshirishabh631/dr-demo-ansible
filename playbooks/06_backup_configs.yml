@@ -1,6 +1,6 @@
 ---
 - name: Backup server configs
-  hosts: all
+  hosts: rhel:ubuntu
   become: true
   gather_facts: true
   tasks:

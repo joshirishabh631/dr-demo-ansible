@@ -1,6 +1,6 @@
 ---
 - name: User account audit
-  hosts: all
+  hosts: rhel:ubuntu
   become: true
   gather_facts: false
   tasks:

@@ -1,6 +1,6 @@
 ---
 - name: Security audit
-  hosts: all
+  hosts: rhel:ubuntu
   become: true
   gather_facts: true
   tasks:

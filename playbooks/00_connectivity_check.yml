@@ -1,6 +1,6 @@
 ---
 - name: Connectivity and facts check
-  hosts: all
+  hosts: rhel:ubuntu
   gather_facts: true
   tasks:
     - name: Ping all servers

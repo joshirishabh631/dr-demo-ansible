@@ -1,30 +1,31 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>DR Failover Drill Report</title>
 <style>
-body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 30px; background: #f4f6f8; color: #2c3e50; }
-.header { background: #1a5276; color: #fff; padding: 24px 30px; border-radius: 8px; margin-bottom: 24px; }
-.header h1 { margin: 0 0 6px 0; }
-.header p { margin: 0; opacity: 0.85; font-size: 13px; }
+body { font-family: Arial, sans-serif; margin: 0; padding: 30px; background-color: #f4f6f8; }
+table { border-collapse: collapse; width: 100%; }
+.header { background-color: #1a5276; padding: 24px 30px; border-radius: 8px; margin-bottom: 24px; }
+.header h1 { margin: 0 0 6px 0; color: #ffffff; font-size: 24px; }
+.header p { margin: 0; color: #d6e4f0; font-size: 13px; }
 .result-banner { padding: 16px 24px; border-radius: 8px; font-size: 18px; font-weight: bold; text-align: center; margin-bottom: 24px; }
-.result-success { background: #d5f5e3; color: #196f3d; }
-.result-failed { background: #fdedec; color: #943126; }
-.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; overflow: hidden; }
-.card-title { background: #2874a6; color: #fff; padding: 10px 20px; font-weight: bold; font-size: 14px; }
+.result-success { background-color: #d5f5e3; color: #196f3d; }
+.result-failed { background-color: #fdedec; color: #943126; }
+.card { background-color: #ffffff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; }
+.card-title { background-color: #2874a6; color: #ffffff; padding: 10px 20px; font-weight: bold; font-size: 14px; border-radius: 8px 8px 0 0; }
 .card-body { padding: 16px 20px; }
-.step { display: flex; align-items: center; padding: 8px 0; border-bottom: 1px solid #eee; font-size: 13px; }
-.step:last-child { border-bottom: none; }
-.step-num { background: #2874a6; color: #fff; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; margin-right: 12px; flex-shrink: 0; }
-.log-block { background: #1b2631; color: #d5dbdb; font-family: 'Consolas', 'Monaco', monospace; font-size: 12px; padding: 12px 16px; border-radius: 6px; white-space: pre-wrap; word-wrap: break-word; line-height: 1.5; overflow-x: auto; margin-top: 8px; }
-.compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.site-box h4 { margin: 0 0 6px 0; font-size: 13px; text-transform: uppercase; color: #7f8c8d; }
-.status-ok { color: #196f3d; font-weight: bold; }
-.status-down { color: #943126; font-weight: bold; }
+.step-row td { padding: 10px 8px; border-bottom: 1px solid #eeeeee; color: #2c3e50; font-size: 14px; vertical-align: middle; }
+.step-num-cell { width: 34px; }
+.step-num { background-color: #2874a6; color: #ffffff; width: 24px; height: 24px; line-height: 24px; text-align: center; border-radius: 50%; font-size: 12px; display: inline-block; }
+.log-block { background-color: #1b2631; color: #d5dbdb; font-family: monospace; font-size: 12px; padding: 12px 16px; border-radius: 6px; white-space: pre-wrap; word-wrap: break-word; line-height: 1.5; margin-top: 8px; }
+.label { color: #7f8c8d; font-size: 12px; text-transform: uppercase; font-weight: bold; }
+.value-ok { color: #196f3d; font-weight: bold; }
+.value-down { color: #943126; font-weight: bold; }
+.compare-table td { vertical-align: top; width: 50%; padding: 0 10px; }
 </style></head>
 <body>
 
 <div class="header">
   <h1>DR Application Failover Drill — Full Report</h1>
-  <p>{{ drill.dc_vm }} ({{ drill.dc_ip }}) &rarr; {{ drill.dr_vm }} ({{ drill.dr_ip }})</p>
+  <p>{{ drill.dc_vm }} ({{ drill.dc_ip }}) to {{ drill.dr_vm }} ({{ drill.dr_ip }})</p>
   <p>Window: {{ drill.drill_start }} to {{ drill.drill_end }}</p>
 </div>
 
@@ -35,11 +36,28 @@ body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 30px; bac
 <div class="card">
   <div class="card-title">Steps executed</div>
   <div class="card-body">
-    <div class="step"><div class="step-num">1</div><div>DC site pre-check &mdash; HTTP {{ drill.dc_pre_status }}</div></div>
-    <div class="step"><div class="step-num">2</div><div>DC VM ({{ drill.dc_vm }}) shut down to simulate outage</div></div>
-    <div class="step"><div class="step-num">3</div><div>DC site post-shutdown check &mdash; {{ drill.dc_post_status }}</div></div>
-    <div class="step"><div class="step-num">4</div><div>DR VM ({{ drill.dr_vm }}) confirmed running</div></div>
-    <div class="step"><div class="step-num">5</div><div>DR site serving traffic &mdash; HTTP {{ drill.dr_post_status }}</div></div>
+    <table>
+      <tr class="step-row">
+        <td class="step-num-cell"><span class="step-num">1</span></td>
+        <td>DC site pre-check &mdash; {{ drill.dc_pre_status }}</td>
+      </tr>
+      <tr class="step-row">
+        <td class="step-num-cell"><span class="step-num">2</span></td>
+        <td>DC VM ({{ drill.dc_vm }}) shut down to simulate outage</td>
+      </tr>
+      <tr class="step-row">
+        <td class="step-num-cell"><span class="step-num">3</span></td>
+        <td>DC site post-shutdown check &mdash; {{ drill.dc_post_status }}</td>
+      </tr>
+      <tr class="step-row">
+        <td class="step-num-cell"><span class="step-num">4</span></td>
+        <td>DR VM ({{ drill.dr_vm }}) confirmed running</td>
+      </tr>
+      <tr class="step-row">
+        <td class="step-num-cell"><span class="step-num">5</span></td>
+        <td>DR site serving traffic &mdash; {{ drill.dr_post_status }}</td>
+      </tr>
+    </table>
   </div>
 </div>
 
@@ -55,17 +73,21 @@ body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 30px; bac
 
 <div class="card">
   <div class="card-title">Site availability comparison</div>
-  <div class="card-body compare">
-    <div class="site-box">
-      <h4>DC site (before)</h4>
-      <p>Status: <span class="{{ 'status-ok' if drill.dc_pre_status == 200 else 'status-down' }}">{{ drill.dc_pre_status }}</span></p>
-      <div class="log-block">{{ drill.dc_pre_content }}</div>
-    </div>
-    <div class="site-box">
-      <h4>DR site (after failover)</h4>
-      <p>Status: <span class="{{ 'status-ok' if drill.dr_post_status == 200 else 'status-down' }}">{{ drill.dr_post_status }}</span></p>
-      <div class="log-block">{{ drill.dr_post_content }}</div>
-    </div>
+  <div class="card-body">
+    <table class="compare-table">
+      <tr>
+        <td>
+          <div class="label">DC site (before)</div>
+          <div class="{{ 'value-ok' if 'HTTP 200' in drill.dc_pre_status else 'value-down' }}">{{ drill.dc_pre_status }}</div>
+          <div class="log-block">{{ drill.dc_pre_content }}</div>
+        </td>
+        <td>
+          <div class="label">DR site (after failover)</div>
+          <div class="{{ 'value-ok' if 'HTTP 200' in drill.dr_post_status else 'value-down' }}">{{ drill.dr_post_status }}</div>
+          <div class="log-block">{{ drill.dr_post_content }}</div>
+        </td>
+      </tr>
+    </table>
   </div>
 </div>
 
@@ -77,10 +99,10 @@ body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 30px; bac
 <div class="card">
   <div class="card-title">DR server — resource usage</div>
   <div class="card-body">
-    <p><b>Uptime:</b> {{ drill.dr_uptime }}</p>
-    <p><b>Disk:</b></p>
+    <p style="color:#2c3e50"><b>Uptime:</b> {{ drill.dr_uptime }}</p>
+    <div class="label">Disk</div>
     <div class="log-block">{{ drill.dr_disk }}</div>
-    <p><b>Memory:</b></p>
+    <div class="label" style="margin-top:12px">Memory</div>
     <div class="log-block">{{ drill.dr_mem }}</div>
   </div>
 </div>

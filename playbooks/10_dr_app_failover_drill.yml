@@ -136,6 +136,13 @@
       set_fact:
         drill_end: "{{ lookup('pipe', 'date +%Y-%m-%dT%H:%M:%S') }}"
 
+    - name: Compute human-readable status fields
+      set_fact:
+        dc_pre_status_display: "{{ 'HTTP ' + (dc_pre_check.status | default(0) | string) if (dc_pre_check.status | default(0) | int) > 0 else 'Unreachable' }}"
+        dr_pre_status_display: "{{ 'HTTP ' + (dr_pre_check.status | default(0) | string) if (dr_pre_check.status | default(0) | int) > 0 else 'Unreachable' }}"
+        dc_post_status_display: "{{ 'HTTP ' + (dc_post_check.status | default(0) | string) if (dc_post_check.status | default(0) | int) > 0 else 'Unreachable (expected - DC is down)' }}"
+        dr_post_status_display: "{{ 'HTTP ' + (dr_post_check.status | default(0) | string) if (dr_post_check.status | default(0) | int) > 0 else 'Unreachable' }}"
+
     - name: Save full drill json
       copy:
         content: >-
@@ -145,13 +152,13 @@
             'drill_start': drill_start, 'drill_end': drill_end,
             'vm_states_before': vm_states_before.stdout,
             'vm_states_after': vm_states_after.stdout,
-            'dc_pre_status': (dc_pre_check.status | default('unreachable')),
-            'dc_pre_content': (dc_pre_check.content | default('')),
-            'dr_pre_status': (dr_pre_check.status | default('unreachable')),
-            'dr_pre_content': (dr_pre_check.content | default('')),
-            'dc_post_status': (dc_post_check.status | default('unreachable (expected)')),
-            'dr_post_status': (dr_post_check.status | default('unreachable')),
-            'dr_post_content': (dr_post_check.content | default('')),
+            'dc_pre_status': dc_pre_status_display,
+            'dc_pre_content': (dc_pre_check.content | default('no response')),
+            'dr_pre_status': dr_pre_status_display,
+            'dr_pre_content': (dr_pre_check.content | default('no response')),
+            'dc_post_status': dc_post_status_display,
+            'dr_post_status': dr_post_status_display,
+            'dr_post_content': (dr_post_check.content | default('no response')),
             'dr_nginx_status': (dr_nginx_status.stdout | default('n/a')),
             'dr_disk': (dr_disk.stdout | default('n/a')),
             'dr_mem': (dr_mem.stdout | default('n/a')),

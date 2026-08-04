@@ -1,6 +1,6 @@
 ---
 - name: Deploy and verify nginx (config management demo)
-  hosts: all
+  hosts: rhel:ubuntu
   become: true
   gather_facts: true
   tasks:

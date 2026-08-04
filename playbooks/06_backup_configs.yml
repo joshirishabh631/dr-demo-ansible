@@ -10,8 +10,6 @@
 
     - name: Archive /etc using tar
       shell: "tar -czf /tmp/{{ inventory_hostname }}_etc_backup_{{ backup_ts }}.tar.gz -C / etc"
-      args:
-        warn: false
 
     - name: Fetch backup to control node
       fetch:

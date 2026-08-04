@@ -1,0 +1,37 @@
+---
+- name: Deploy and verify nginx (config management demo)
+  hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Install nginx (RHEL)
+      dnf:
+        name: nginx
+        state: present
+      when: ansible_os_family == "RedHat"
+
+    - name: Install nginx (Ubuntu)
+      apt:
+        name: nginx
+        state: present
+        update_cache: true
+      when: ansible_os_family == "Debian"
+
+    - name: Ensure nginx is running
+      service:
+        name: nginx
+        state: started
+        enabled: true
+
+    - name: Verify nginx responds
+      uri:
+        url: "http://localhost:80"
+        status_code: 200
+      register: nginx_check
+      failed_when: false
+
+    - name: Save deployment json
+      copy:
+        content: "{{ {'host': inventory_hostname, 'nginx_deployed': true, 'http_check': (nginx_check.status | default('failed'))} | to_nice_json }}"
+        dest: "/tmp/deploy_{{ inventory_hostname }}.json"
+      delegate_to: localhost

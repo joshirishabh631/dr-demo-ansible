@@ -1,0 +1,35 @@
+---
+- name: Security audit
+  hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Check firewall status (RHEL - firewalld)
+      command: firewall-cmd --state
+      register: fw_rhel
+      failed_when: false
+      changed_when: false
+      when: ansible_os_family == "RedHat"
+
+    - name: Check firewall status (Ubuntu - ufw)
+      command: ufw status
+      register: fw_ubuntu
+      failed_when: false
+      changed_when: false
+      when: ansible_os_family == "Debian"
+
+    - name: Check SSH root login setting
+      shell: "grep -i '^PermitRootLogin' /etc/ssh/sshd_config || echo 'default (yes)'"
+      register: root_login
+      changed_when: false
+
+    - name: Check listening ports
+      shell: "ss -tulnp | awk 'NR>1{print $5}' | sort -u | tr '\n' ',' "
+      register: open_ports
+      changed_when: false
+
+    - name: Save security json
+      copy:
+        content: "{{ {'host': inventory_hostname, 'firewall': (fw_rhel.stdout | default(fw_ubuntu.stdout) | default('unknown')), 'root_login': root_login.stdout, 'open_ports': open_ports.stdout} | to_nice_json }}"
+        dest: "/tmp/security_{{ inventory_hostname }}.json"
+      delegate_to: localhost

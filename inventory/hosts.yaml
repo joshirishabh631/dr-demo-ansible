@@ -19,7 +19,6 @@ all:
           ansible_user: rishabh
           ansible_password: "1"
           ansible_become_password: "1"
-  children:
     dc:
       hosts:
         rhel8-10:

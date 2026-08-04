@@ -1,0 +1,25 @@
+---
+- name: Backup server configs
+  hosts: all
+  become: true
+  gather_facts: true
+  vars:
+    backup_ts: "{{ lookup('pipe', 'date +%Y%m%d_%H%M%S') }}"
+  tasks:
+    - name: Archive /etc
+      archive:
+        path: /etc
+        dest: "/tmp/{{ inventory_hostname }}_etc_backup_{{ backup_ts }}.tar.gz"
+        format: gz
+
+    - name: Fetch backup to control node
+      fetch:
+        src: "/tmp/{{ inventory_hostname }}_etc_backup_{{ backup_ts }}.tar.gz"
+        dest: "/home/rishabh/dr-demo/semaphore/reports/backups/"
+        flat: true
+
+    - name: Save backup status json
+      copy:
+        content: "{{ {'host': inventory_hostname, 'backup_file': inventory_hostname + '_etc_backup_' + backup_ts + '.tar.gz', 'status': 'success'} | to_nice_json }}"
+        dest: "/tmp/backup_{{ inventory_hostname }}.json"
+      delegate_to: localhost

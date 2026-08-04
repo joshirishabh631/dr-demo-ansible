@@ -1,0 +1,21 @@
+---
+- name: User account audit
+  hosts: all
+  become: true
+  gather_facts: false
+  tasks:
+    - name: List human users (UID >= 1000)
+      shell: "awk -F: '$3>=1000 && $3<65534 {print $1}' /etc/passwd | tr '\n' ',' "
+      register: human_users
+      changed_when: false
+
+    - name: Check for accounts with empty password field
+      shell: "awk -F: '($2==\"\"){print $1}' /etc/shadow | tr '\n' ',' "
+      register: empty_pass
+      changed_when: false
+
+    - name: Save user audit json
+      copy:
+        content: "{{ {'host': inventory_hostname, 'human_users': human_users.stdout, 'empty_password_accounts': empty_pass.stdout} | to_nice_json }}"
+        dest: "/tmp/useraudit_{{ inventory_hostname }}.json"
+      delegate_to: localhost

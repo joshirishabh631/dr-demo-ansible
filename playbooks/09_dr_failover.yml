@@ -1,0 +1,56 @@
+---
+- name: DC to DR failover
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    dc_vm: "rhel8.10"
+    dr_vm: "rhel9.8"
+  tasks:
+    - name: Record drill start
+      set_fact:
+        drill_start: "{{ lookup('pipe', 'date +%Y-%m-%dT%H:%M:%S') }}"
+
+    - name: Check DC VM state
+      community.libvirt.virt:
+        name: "{{ dc_vm }}"
+        command: status
+      register: dc_status
+
+    - name: Shut down DC VM (simulate outage)
+      community.libvirt.virt:
+        name: "{{ dc_vm }}"
+        state: shutdown
+      when: dc_status.status == 'running'
+
+    - name: Confirm DC VM down
+      community.libvirt.virt:
+        name: "{{ dc_vm }}"
+        command: status
+      register: dc_stop_check
+      until: dc_stop_check.status == 'shutdown'
+      retries: 12
+      delay: 5
+
+    - name: Start DR VM
+      community.libvirt.virt:
+        name: "{{ dr_vm }}"
+        state: running
+
+    - name: Confirm DR VM up
+      community.libvirt.virt:
+        name: "{{ dr_vm }}"
+        command: status
+      register: dr_start_check
+      until: dr_start_check.status == 'running'
+      retries: 12
+      delay: 5
+
+    - name: Record drill end
+      set_fact:
+        drill_end: "{{ lookup('pipe', 'date +%Y-%m-%dT%H:%M:%S') }}"
+
+    - name: Save failover json
+      copy:
+        content: "{{ {'dc_vm': dc_vm, 'dr_vm': dr_vm, 'drill_start': drill_start, 'drill_end': drill_end} | to_nice_json }}"
+        dest: "/tmp/failover_result.json"

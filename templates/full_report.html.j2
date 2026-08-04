@@ -1,0 +1,40 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>Infrastructure Automation Report</title>
+<style>
+body{font-family:Arial;margin:40px}h1{color:#1a5276}h2{color:#2874a6;margin-top:30px}
+table{border-collapse:collapse;width:100%;margin-top:12px}
+td,th{border:1px solid #ccc;padding:8px}th{background:#f2f2f2}
+.ok{color:green;font-weight:bold}.warn{color:#c0392b;font-weight:bold}
+</style></head><body>
+<h1>Infrastructure Automation Run</h1>
+<p>Generated {{ lookup('pipe','date') }}</p>
+
+<h2>Server health</h2>
+<table><tr><th>Host</th><th>OS</th><th>Disk %</th><th>Mem %</th><th>SSH</th></tr>
+{% for h in health_data %}
+<tr><td>{{ h.host }}</td><td>{{ h.os }}</td>
+<td class="{{ 'warn' if h.disk_pct|int > 80 else 'ok' }}">{{ h.disk_pct }}%</td>
+<td>{{ h.mem_pct }}%</td>
+<td class="{{ 'ok' if h.sshd_running else 'warn' }}">{{ h.sshd_running }}</td></tr>
+{% endfor %}</table>
+
+<h2>Patch compliance</h2>
+<table><tr><th>Host</th><th>Pending updates</th></tr>
+{% for p in patch_data %}
+<tr><td>{{ p.host }}</td>
+<td class="{{ 'warn' if p.pending_updates|int > 0 else 'ok' }}">{{ p.pending_updates }}</td></tr>
+{% endfor %}</table>
+
+<h2>Security audit</h2>
+<table><tr><th>Host</th><th>Firewall</th><th>Root login</th></tr>
+{% for s in security_data %}
+<tr><td>{{ s.host }}</td><td>{{ s.firewall }}</td><td>{{ s.root_login }}</td></tr>
+{% endfor %}</table>
+
+<h2>User account audit</h2>
+<table><tr><th>Host</th><th>Human users</th><th>Empty-password accounts</th></tr>
+{% for u in user_data %}
+<tr><td>{{ u.host }}</td><td>{{ u.human_users }}</td>
+<td class="{{ 'warn' if u.empty_password_accounts else 'ok' }}">{{ u.empty_password_accounts if u.empty_password_accounts else 'None' }}</td></tr>
+{% endfor %}</table>
+
+</body></html>

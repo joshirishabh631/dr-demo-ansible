@@ -1,0 +1,27 @@
+---
+- name: Patch compliance check
+  hosts: all
+  gather_facts: true
+  tasks:
+    - name: Check updates (RHEL)
+      command: dnf check-update
+      register: yum_check
+      failed_when: false
+      changed_when: false
+      when: ansible_os_family == "RedHat"
+
+    - name: Check updates (Ubuntu)
+      shell: apt list --upgradable 2>/dev/null | tail -n +2
+      register: apt_check
+      changed_when: false
+      when: ansible_os_family == "Debian"
+
+    - name: Count pending updates
+      set_fact:
+        pending_count: "{{ (yum_check.stdout_lines | default([]) | length) if ansible_os_family == 'RedHat' else (apt_check.stdout_lines | default([]) | length) }}"
+
+    - name: Save patch json
+      copy:
+        content: "{{ {'host': inventory_hostname, 'pending_updates': pending_count} | to_nice_json }}"
+        dest: "/tmp/patch_{{ inventory_hostname }}.json"
+      delegate_to: localhost

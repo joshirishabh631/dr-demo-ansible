@@ -1,0 +1,42 @@
+---
+- import_playbook: 00_connectivity_check.yml
+- import_playbook: 03_service_health_check.yml
+- import_playbook: 04_patch_compliance.yml
+- import_playbook: 05_security_audit.yml
+- import_playbook: 07_user_account_audit.yml
+
+- name: Build consolidated HTML report
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    hosts_list: ["rhel8-10", "rhel9-8", "vahan-vpn"]
+  tasks:
+    - name: Load health data
+      set_fact:
+        health_data: "{{ health_data | default([]) + [lookup('file', '/tmp/health_' + item + '.json') | from_json] }}"
+      loop: "{{ hosts_list }}"
+
+    - name: Load patch data
+      set_fact:
+        patch_data: "{{ patch_data | default([]) + [lookup('file', '/tmp/patch_' + item + '.json') | from_json] }}"
+      loop: "{{ hosts_list }}"
+
+    - name: Load security data
+      set_fact:
+        security_data: "{{ security_data | default([]) + [lookup('file', '/tmp/security_' + item + '.json') | from_json] }}"
+      loop: "{{ hosts_list }}"
+
+    - name: Load user audit data
+      set_fact:
+        user_data: "{{ user_data | default([]) + [lookup('file', '/tmp/useraudit_' + item + '.json') | from_json] }}"
+      loop: "{{ hosts_list }}"
+
+    - name: Render report
+      template:
+        src: ../templates/full_report.html.j2
+        dest: "/home/rishabh/dr-demo/semaphore/reports/automation_run_{{ lookup('pipe','date +%Y%m%d_%H%M%S') }}.html"
+
+    - name: Print summary to job log
+      debug:
+        msg: "Report generated — view it at http://172.20.10.3:8090"

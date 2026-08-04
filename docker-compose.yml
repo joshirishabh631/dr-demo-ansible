@@ -11,7 +11,7 @@ services:
       - mysql_data:/var/lib/mysql
 
   semaphore:
-    image: semaphore-test:latest
+    image: semaphore-test1:latest
     restart: unless-stopped
     ports:
       - "3000:3000"

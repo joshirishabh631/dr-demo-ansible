@@ -3,14 +3,15 @@
   hosts: all
   become: true
   gather_facts: true
-  vars:
-    backup_ts: "{{ lookup('pipe', 'date +%Y%m%d_%H%M%S') }}"
   tasks:
-    - name: Archive /etc
-      archive:
-        path: /etc
-        dest: "/tmp/{{ inventory_hostname }}_etc_backup_{{ backup_ts }}.tar.gz"
-        format: gz
+    - name: Set backup timestamp once
+      set_fact:
+        backup_ts: "{{ lookup('pipe', 'date +%Y%m%d_%H%M%S') }}"
+
+    - name: Archive /etc using tar
+      shell: "tar -czf /tmp/{{ inventory_hostname }}_etc_backup_{{ backup_ts }}.tar.gz -C / etc"
+      args:
+        warn: false
 
     - name: Fetch backup to control node
       fetch:

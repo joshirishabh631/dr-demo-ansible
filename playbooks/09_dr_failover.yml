@@ -5,22 +5,23 @@
   vars:
     dc_vm: "rhel8.10"
     dr_vm: "rhel9.8"
+    virsh_uri: "qemu:///system"
   tasks:
     - name: Record drill start
       set_fact:
         drill_start: "{{ lookup('pipe', 'date +%Y-%m-%dT%H:%M:%S') }}"
 
     - name: Check DC VM state
-      command: "virsh domstate {{ dc_vm }}"
+      command: "virsh -c {{ virsh_uri }} domstate {{ dc_vm }}"
       register: dc_status
       changed_when: false
 
     - name: Shut down DC VM (simulate outage)
-      command: "virsh shutdown {{ dc_vm }}"
+      command: "virsh -c {{ virsh_uri }} shutdown {{ dc_vm }}"
       when: "'running' in dc_status.stdout"
 
     - name: Wait for DC VM to be shut off
-      command: "virsh domstate {{ dc_vm }}"
+      command: "virsh -c {{ virsh_uri }} domstate {{ dc_vm }}"
       register: dc_stop_check
       until: "'shut off' in dc_stop_check.stdout"
       retries: 12
@@ -28,13 +29,13 @@
       changed_when: false
 
     - name: Start DR VM (failover)
-      command: "virsh start {{ dr_vm }}"
+      command: "virsh -c {{ virsh_uri }} start {{ dr_vm }}"
       register: dr_start_result
       failed_when: dr_start_result.rc != 0 and 'already active' not in dr_start_result.stderr
       changed_when: dr_start_result.rc == 0
 
     - name: Confirm DR VM running
-      command: "virsh domstate {{ dr_vm }}"
+      command: "virsh -c {{ virsh_uri }} domstate {{ dr_vm }}"
       register: dr_start_check
       until: "'running' in dr_start_check.stdout"
       retries: 12

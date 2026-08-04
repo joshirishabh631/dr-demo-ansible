@@ -1,0 +1,120 @@
+---
+- name: DR application failover drill
+  hosts: kvm
+  gather_facts: false
+  vars:
+    dc_vm: "rhel8.10"
+    dc_ip: "192.168.122.126"
+    dr_vm: "rhel9.8"
+    dr_ip: "192.168.122.45"
+    virsh_uri: "qemu:///system"
+  tasks:
+    - name: Record drill start
+      set_fact:
+        drill_start: "{{ lookup('pipe', 'date +%Y-%m-%dT%H:%M:%S') }}"
+
+    - name: Pre-check — DC site reachable before drill
+      uri:
+        url: "http://{{ dc_ip }}"
+        return_content: true
+      register: dc_pre_check
+      failed_when: false
+
+    - name: Pre-check — DR site reachable before drill
+      uri:
+        url: "http://{{ dr_ip }}"
+        return_content: true
+      register: dr_pre_check
+      failed_when: false
+
+    - name: Check DC VM state
+      command: "virsh -c {{ virsh_uri }} domstate {{ dc_vm }}"
+      register: dc_status
+      changed_when: false
+
+    - name: STEP 1 — Shut down DC VM (simulate outage)
+      command: "virsh -c {{ virsh_uri }} shutdown {{ dc_vm }}"
+      when: "'running' in dc_status.stdout"
+
+    - name: Wait for DC VM to be shut off
+      command: "virsh -c {{ virsh_uri }} domstate {{ dc_vm }}"
+      register: dc_stop_check
+      until: "'shut off' in dc_stop_check.stdout"
+      retries: 12
+      delay: 5
+      changed_when: false
+
+    - name: STEP 2 — Confirm DC site is now unreachable
+      uri:
+        url: "http://{{ dc_ip }}"
+        timeout: 5
+      register: dc_post_check
+      failed_when: false
+
+    - name: STEP 3 — Confirm DR VM is running
+      command: "virsh -c {{ virsh_uri }} domstate {{ dr_vm }}"
+      register: dr_status
+      changed_when: false
+
+    - name: Start DR VM if not already running
+      command: "virsh -c {{ virsh_uri }} start {{ dr_vm }}"
+      when: "'running' not in dr_status.stdout"
+      register: dr_start_result
+      failed_when: dr_start_result is failed and 'already active' not in dr_start_result.stderr|default('')
+
+    - name: Wait for DR VM SSH to come up (if it was just started)
+      wait_for:
+        host: "{{ dr_ip }}"
+        port: 22
+        timeout: 120
+      when: "'running' not in dr_status.stdout"
+
+    - name: STEP 4 — Verify DR site is serving traffic
+      uri:
+        url: "http://{{ dr_ip }}"
+        return_content: true
+      register: dr_post_check
+
+    - name: Record drill end
+      set_fact:
+        drill_end: "{{ lookup('pipe', 'date +%Y-%m-%dT%H:%M:%S') }}"
+
+    - name: Save DR drill json
+      copy:
+        content: >-
+          {{ {
+            'dc_vm': dc_vm, 'dc_ip': dc_ip,
+            'dr_vm': dr_vm, 'dr_ip': dr_ip,
+            'drill_start': drill_start, 'drill_end': drill_end,
+            'dc_pre_status': (dc_pre_check.status | default('unreachable')),
+            'dr_pre_status': (dr_pre_check.status | default('unreachable')),
+            'dc_post_status': (dc_post_check.status | default('unreachable (expected)')),
+            'dr_post_status': (dr_post_check.status | default('unreachable')),
+            'dr_post_content': (dr_post_check.content | default('') | regex_search('<h1>(.*?)</h1>') | default('n/a')),
+            'failover_result': ('SUCCESS' if (dr_post_check.status | default(0) | int) == 200 else 'FAILED')
+          } | to_nice_json }}
+        dest: "/reports/data/dr_app_failover.json"
+      delegate_to: localhost
+
+    - name: Print drill summary to job log
+      debug:
+        msg:
+          - "=== DR FAILOVER DRILL SUMMARY ==="
+          - "DC ({{ dc_vm }}) before: HTTP {{ dc_pre_check.status | default('unreachable') }}"
+          - "DC ({{ dc_vm }}) after shutdown: {{ dc_post_check.status | default('unreachable (expected)') }}"
+          - "DR ({{ dr_vm }}) serving: HTTP {{ dr_post_check.status | default('unreachable') }}"
+          - "Result: {{ 'SUCCESS' if (dr_post_check.status | default(0) | int) == 200 else 'FAILED' }}"
+
+- name: Render DR failover report
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Load drill data
+      set_fact:
+        drill: "{{ lookup('file', '/reports/data/dr_app_failover.json') | from_json }}"
+
+    - name: Render HTML
+      template:
+        src: ../templates/dr_failover_report.html.j2
+        dest: "/reports/dr_failover_{{ lookup('pipe','date +%Y%m%d_%H%M%S') }}.html"

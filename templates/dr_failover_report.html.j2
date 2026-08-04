@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>DR Failover Drill Report</title>
+<style>
+body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 30px; background: #f4f6f8; color: #2c3e50; }
+.header { background: #1a5276; color: #fff; padding: 24px 30px; border-radius: 8px; margin-bottom: 24px; }
+.header h1 { margin: 0 0 6px 0; }
+.result-banner { padding: 16px 24px; border-radius: 8px; font-size: 18px; font-weight: bold; text-align: center; margin-bottom: 24px; }
+.result-success { background: #d5f5e3; color: #196f3d; }
+.result-failed { background: #fdedec; color: #943126; }
+.step-list { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 20px 24px; margin-bottom: 20px; }
+.step { display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee; }
+.step:last-child { border-bottom: none; }
+.step-num { background: #2874a6; color: #fff; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; margin-right: 14px; flex-shrink: 0; }
+.compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.site-box { background: #fff; border-radius: 8px; padding: 16px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.site-box h3 { margin-top: 0; }
+.status-ok { color: #196f3d; font-weight: bold; }
+.status-down { color: #943126; font-weight: bold; }
+</style></head>
+<body>
+
+<div class="header">
+  <h1>DR Application Failover Drill</h1>
+  <p>{{ drill.dc_vm }} ({{ drill.dc_ip }}) &rarr; {{ drill.dr_vm }} ({{ drill.dr_ip }})</p>
+  <p>{{ drill.drill_start }} to {{ drill.drill_end }}</p>
+</div>
+
+<div class="result-banner {{ 'result-success' if drill.failover_result == 'SUCCESS' else 'result-failed' }}">
+  Failover result: {{ drill.failover_result }}
+</div>
+
+<div class="step-list">
+  <div class="step"><div class="step-num">1</div><div>DC site pre-check &mdash; HTTP {{ drill.dc_pre_status }}</div></div>
+  <div class="step"><div class="step-num">2</div><div>DC VM shut down to simulate outage</div></div>
+  <div class="step"><div class="step-num">3</div><div>DC site post-shutdown check &mdash; {{ drill.dc_post_status }}</div></div>
+  <div class="step"><div class="step-num">4</div><div>DR VM confirmed running</div></div>
+  <div class="step"><div class="step-num">5</div><div>DR site serving traffic &mdash; HTTP {{ drill.dr_post_status }}</div></div>
+</div>
+
+<div class="compare">
+  <div class="site-box">
+    <h3>DC site (before)</h3>
+    <p>Status: <span class="{{ 'status-ok' if drill.dc_pre_status == 200 else 'status-down' }}">{{ drill.dc_pre_status }}</span></p>
+  </div>
+  <div class="site-box">
+    <h3>DR site (after failover)</h3>
+    <p>Status: <span class="{{ 'status-ok' if drill.dr_post_status == 200 else 'status-down' }}">{{ drill.dr_post_status }}</span></p>
+    <p>Page title: {{ drill.dr_post_content }}</p>
+  </div>
+</div>
+
+</body></html>

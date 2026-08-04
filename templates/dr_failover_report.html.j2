@@ -4,49 +4,90 @@
 body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 30px; background: #f4f6f8; color: #2c3e50; }
 .header { background: #1a5276; color: #fff; padding: 24px 30px; border-radius: 8px; margin-bottom: 24px; }
 .header h1 { margin: 0 0 6px 0; }
+.header p { margin: 0; opacity: 0.85; font-size: 13px; }
 .result-banner { padding: 16px 24px; border-radius: 8px; font-size: 18px; font-weight: bold; text-align: center; margin-bottom: 24px; }
 .result-success { background: #d5f5e3; color: #196f3d; }
 .result-failed { background: #fdedec; color: #943126; }
-.step-list { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 20px 24px; margin-bottom: 20px; }
-.step { display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; overflow: hidden; }
+.card-title { background: #2874a6; color: #fff; padding: 10px 20px; font-weight: bold; font-size: 14px; }
+.card-body { padding: 16px 20px; }
+.step { display: flex; align-items: center; padding: 8px 0; border-bottom: 1px solid #eee; font-size: 13px; }
 .step:last-child { border-bottom: none; }
-.step-num { background: #2874a6; color: #fff; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; margin-right: 14px; flex-shrink: 0; }
+.step-num { background: #2874a6; color: #fff; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; margin-right: 12px; flex-shrink: 0; }
+.log-block { background: #1b2631; color: #d5dbdb; font-family: 'Consolas', 'Monaco', monospace; font-size: 12px; padding: 12px 16px; border-radius: 6px; white-space: pre-wrap; word-wrap: break-word; line-height: 1.5; overflow-x: auto; margin-top: 8px; }
 .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.site-box { background: #fff; border-radius: 8px; padding: 16px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-.site-box h3 { margin-top: 0; }
+.site-box h4 { margin: 0 0 6px 0; font-size: 13px; text-transform: uppercase; color: #7f8c8d; }
 .status-ok { color: #196f3d; font-weight: bold; }
 .status-down { color: #943126; font-weight: bold; }
 </style></head>
 <body>
 
 <div class="header">
-  <h1>DR Application Failover Drill</h1>
+  <h1>DR Application Failover Drill — Full Report</h1>
   <p>{{ drill.dc_vm }} ({{ drill.dc_ip }}) &rarr; {{ drill.dr_vm }} ({{ drill.dr_ip }})</p>
-  <p>{{ drill.drill_start }} to {{ drill.drill_end }}</p>
+  <p>Window: {{ drill.drill_start }} to {{ drill.drill_end }}</p>
 </div>
 
 <div class="result-banner {{ 'result-success' if drill.failover_result == 'SUCCESS' else 'result-failed' }}">
   Failover result: {{ drill.failover_result }}
 </div>
 
-<div class="step-list">
-  <div class="step"><div class="step-num">1</div><div>DC site pre-check &mdash; HTTP {{ drill.dc_pre_status }}</div></div>
-  <div class="step"><div class="step-num">2</div><div>DC VM shut down to simulate outage</div></div>
-  <div class="step"><div class="step-num">3</div><div>DC site post-shutdown check &mdash; {{ drill.dc_post_status }}</div></div>
-  <div class="step"><div class="step-num">4</div><div>DR VM confirmed running</div></div>
-  <div class="step"><div class="step-num">5</div><div>DR site serving traffic &mdash; HTTP {{ drill.dr_post_status }}</div></div>
+<div class="card">
+  <div class="card-title">Steps executed</div>
+  <div class="card-body">
+    <div class="step"><div class="step-num">1</div><div>DC site pre-check &mdash; HTTP {{ drill.dc_pre_status }}</div></div>
+    <div class="step"><div class="step-num">2</div><div>DC VM ({{ drill.dc_vm }}) shut down to simulate outage</div></div>
+    <div class="step"><div class="step-num">3</div><div>DC site post-shutdown check &mdash; {{ drill.dc_post_status }}</div></div>
+    <div class="step"><div class="step-num">4</div><div>DR VM ({{ drill.dr_vm }}) confirmed running</div></div>
+    <div class="step"><div class="step-num">5</div><div>DR site serving traffic &mdash; HTTP {{ drill.dr_post_status }}</div></div>
+  </div>
 </div>
 
-<div class="compare">
-  <div class="site-box">
-    <h3>DC site (before)</h3>
-    <p>Status: <span class="{{ 'status-ok' if drill.dc_pre_status == 200 else 'status-down' }}">{{ drill.dc_pre_status }}</span></p>
+<div class="card">
+  <div class="card-title">VM status — before drill</div>
+  <div class="card-body"><div class="log-block">{{ drill.vm_states_before }}</div></div>
+</div>
+
+<div class="card">
+  <div class="card-title">VM status — after drill</div>
+  <div class="card-body"><div class="log-block">{{ drill.vm_states_after }}</div></div>
+</div>
+
+<div class="card">
+  <div class="card-title">Site availability comparison</div>
+  <div class="card-body compare">
+    <div class="site-box">
+      <h4>DC site (before)</h4>
+      <p>Status: <span class="{{ 'status-ok' if drill.dc_pre_status == 200 else 'status-down' }}">{{ drill.dc_pre_status }}</span></p>
+      <div class="log-block">{{ drill.dc_pre_content }}</div>
+    </div>
+    <div class="site-box">
+      <h4>DR site (after failover)</h4>
+      <p>Status: <span class="{{ 'status-ok' if drill.dr_post_status == 200 else 'status-down' }}">{{ drill.dr_post_status }}</span></p>
+      <div class="log-block">{{ drill.dr_post_content }}</div>
+    </div>
   </div>
-  <div class="site-box">
-    <h3>DR site (after failover)</h3>
-    <p>Status: <span class="{{ 'status-ok' if drill.dr_post_status == 200 else 'status-down' }}">{{ drill.dr_post_status }}</span></p>
-    <p>Page title: {{ drill.dr_post_content }}</p>
+</div>
+
+<div class="card">
+  <div class="card-title">DR server — nginx service status</div>
+  <div class="card-body"><div class="log-block">{{ drill.dr_nginx_status }}</div></div>
+</div>
+
+<div class="card">
+  <div class="card-title">DR server — resource usage</div>
+  <div class="card-body">
+    <p><b>Uptime:</b> {{ drill.dr_uptime }}</p>
+    <p><b>Disk:</b></p>
+    <div class="log-block">{{ drill.dr_disk }}</div>
+    <p><b>Memory:</b></p>
+    <div class="log-block">{{ drill.dr_mem }}</div>
   </div>
+</div>
+
+<div class="card">
+  <div class="card-title">DR server — nginx access log (last 20 lines)</div>
+  <div class="card-body"><div class="log-block">{{ drill.dr_nginx_log }}</div></div>
 </div>
 
 </body></html>
